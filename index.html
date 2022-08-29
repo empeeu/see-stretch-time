@@ -1,0 +1,335 @@
+<html>
+<style>
+  .outline {
+    -webkit-text-stroke: 3px white;
+  }
+
+  #timer-container {
+    display: flex;
+    flex-wrap: nowrap;
+    height: 100%;
+    width: 100%;
+    background: #111111;
+  }
+
+  .orient-container-row {
+    flex-direction: column;
+  }
+
+  .orient-container-column {
+    flex-direction: row;
+  }
+
+  .row-container {
+    display: flex;
+    flex-wrap: nowrap;
+    flex: 1;
+  }
+
+  .colorBlock {
+    flex: 1;
+  }
+
+  .order-row-0 {
+    flex-direction: row;
+  }
+
+  .order-row-1 {
+    flex-direction: row-reverse;
+  }
+
+  .order-column-0 {
+    flex-direction: column;
+  }
+
+  .order-column-1 {
+    flex-direction: column-reverse;
+  }
+
+  .timerButton {
+    font-size: 0.4em;
+    border: none;
+    text-decoration: none;
+    text-align: center;
+    padding: 0.2em;
+    padding-bottom:0.6em;
+    height: 2em;
+    top: 0.16em;
+  }
+
+  #editButton {
+    position: fixed;
+    left: 0.16emem;
+    border-radius: 0 0 1.5em 0;
+    /* display: none; */
+  }
+
+  #resetButton {
+    position: fixed;
+    right: 0.16em;
+    border-radius: 0 0 0 1.5em;
+  }
+
+  #startButton {
+    position: fixed;
+    left: 50%;
+    transform: translate(-50%, 0%);
+    border-radius: 0 0 1.5em 1.5em;
+    width: 3em;
+  }
+
+  #timerText {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+</style>
+<script>
+  //////////////////////
+  // Define functions //
+  //////////////////////
+
+  // Functions related to user settings
+  // TODO: Hook this up
+  function setCookie(name, value, days) {
+    var expires = "";
+    if (days) {
+      var date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+  }
+  function getCookie(name, defaultValue) {
+    var nameEQ = name + "=";
+    var ca = document.cookie.split(';');
+    for (var i = 0; i < ca.length; i++) {
+      var c = ca[i];
+      while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+      if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+    }
+    return defaultValue;
+  }
+  function eraseCookie(name) {
+    document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  }
+
+  // Helper functions
+  function str_pad_left(string, pad, length) {
+    // Pads the number with zeros to look nice for the timer display
+    // string: string
+    //    string to pad
+    // pad: string
+    //     What to pad with
+    // length: int
+    //     Length of section
+    return (new Array(length + 1).join(pad) + string).slice(-length);
+  }
+
+  function getTimerText(timeInSeconds) {
+    // Convert the time in seconds to a nice string for display
+    let minutes = Math.floor(timeInSeconds / 60);
+    let seconds = timeInSeconds - minutes * 60;
+    return str_pad_left(minutes, '0', 2) + ':' + str_pad_left(seconds,'0', 2);
+  }
+
+  function parseTimeSeconds(timeAsText){
+    // Converts displayed text BACK into seconds
+    let splitTime = timeAsText.split(":");
+    return parseInt(splitTime[0]) * 60 + parseInt(splitTime[1]);
+  }
+
+  function sleep(ms) {
+    // New style sleep function? This was from stackoverflow
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Building / Updating the UI elements
+  function buildElements() {
+    // Update style of relevant elements
+    document.body.style.fontSize = fontSize + 'em';
+    let timerText = document.getElementById("timerSeconds");
+    timerText.innerText = getTimerText(timerDurations[0]);
+
+
+    let container = document.getElementById("timer-container");
+    container.textContent = "";  // clear the main container
+    container.classList = "orient-container-" + orientation;
+
+    for (let i = 0; i < numRows; i++) {
+      let newRow = document.createElement("div");
+      newRow.classList = "row-container  order-" + orientation + '-' + (i % 2);
+      // for (let j = 0; j < timerDurations.length; j++) {
+      for (let j = 0; j < 2; j++) {
+        var timerId = j;
+        let newTimerBlock = document.createElement("div");
+        newTimerBlock.id = "colorBlock-" + timerId;
+        newTimerBlock.style.background = timerColors[timerId];
+        newTimerBlock.classList = "colorBlock colorBlock-" + timerId;
+        newRow.appendChild(newTimerBlock);
+      }
+      container.appendChild(newRow);
+    }
+  }
+
+  // Actually Running the Timer
+  async function startTimerClick(){
+    let timerText = document.getElementById("timerSeconds");
+    if (keepGoing === false) {
+      keepGoing = true;
+      document.getElementById("startButton").innerText = "Stop";
+      if (resetTimer === true){
+        timerText.innerText = getTimerText(defaultStartupTime);
+        resetTimer = false;
+      }
+      await runTimer();
+    }
+    keepGoing = false;
+    document.getElementById("startButton").innerText = "Start";
+
+  }
+
+  function resetTimerClick(){
+    resetTimer = true;
+    let timerText = document.getElementById("timerSeconds");
+    if (keepGoing) {
+      startTimerClick(); // This will stop the timer
+    }
+    timerText.innerText = getTimerText(timerDurations[0]);
+    currentTimer = -1;
+    totalCounts = 0;
+    timerCount.innerText = "(0)";
+
+  }
+
+  function updateBlockColors(timerId) {
+    let c0 = timerColors[timerId];
+    let timerId1 = timerId + 1;
+    if (timerId1 === timerColors.length) {
+      timerId1 = 0;
+    }
+    let c1 = timerColors[timerId1];
+    let block0 = document.getElementsByClassName("colorBlock-0");
+    let block1 = document.getElementsByClassName("colorBlock-1");
+    console.log(timerId + " " + timerId1 + " " + c1 + " " + c0);
+    for (let i=0; i < block0.length; i++) {
+      block0[i].style.background = c1;
+      block1[i].style.background = c0;
+    }
+}
+
+  async function runTimer() {
+    let timerText = document.getElementById("timerSeconds");
+    let timerCount = document.getElementById("timerCount");
+
+    // First time start is clicked we give user a few seconds to set up
+    if (currentTimer === -1) {
+      updateBlockColors(0);
+      await runTimerDuration(defaultStartupTime, true);
+      currentTimer = 0;
+      timerText.innerText = getTimerText(timerDurations[currentTimer]);
+    }
+
+    while (keepGoing) {
+      updateBlockColors(currentTimer);
+      await runTimerDuration(timerDurations[currentTimer], timerFlash[currentTimer]);
+      if (!keepGoing) {
+        break;
+      }
+      currentTimer += 1;
+      if (currentTimer === timerDurations.length){
+        currentTimer = 0;
+        totalCounts += 1;
+        timerCount.innerText = "(" + totalCounts + ")";
+      }
+      timerText.innerText = getTimerText(timerDurations[currentTimer]);
+    }
+  }
+
+function updateColorFracs(block0, block1, newfrac) {
+  for (let i=0; i < block0.length; i++) {
+    block0[i].style.flex = newfrac;
+    block1[i].style.flex = 1 - newfrac;
+  }
+}
+
+async function runTimerDuration(startTimerTime, flash) {
+  let block0 = document.getElementsByClassName("colorBlock-0");
+  let block1 = document.getElementsByClassName("colorBlock-1");
+  let timerText = document.getElementById("timerSeconds");
+
+  let currentFrac = 1;
+
+  // We need to fudge the start time in case someone paused in the middle of a round...
+  let timerTime = parseTimeSeconds(timerText.innerText);
+  let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
+  let currentTime = Date.now();
+  let flashTotalTime = startTimerTime;
+  if (timerFlashDuration !== null){
+    flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
+  }
+  flashTotalTime *= 1000;
+  while ((timerTime > 0) & (keepGoing)) {
+    currentTime = Date.now();
+    let timeDiff = (currentTime - startTime);
+    timerTime = Math.max(0, startTimerTime - timeDiff / 1000);
+    currentFrac = Math.max(0, timerTime / (startTimerTime));
+    if (flash &  (timeDiff < flashTotalTime)) {
+      if (Math.round(timeDiff / timerFlashIntervalMs) % 2 === 0) {
+        updateColorFracs(block0, block1, 1);
+      } else {
+        updateColorFracs(block0, block1, 0);
+      }
+    } else {
+      updateColorFracs(block1, block0, currentFrac);
+    }
+    timerText.innerText = getTimerText(Math.ceil(timerTime));
+    await sleep(Math.min(updateMs, timerTime * 1000));
+  }
+
+}
+</script>
+
+<head>
+</head>
+
+<body>
+  <div id="timer-container"></div>
+  <button id="resetButton" class="timerButton" onclick="resetTimerClick()">Reset</button>
+  <button id="startButton" class="timerButton" onclick="startTimerClick()">Start</button>
+  <button id="editButton" class="timerButton">Edit</button>
+  <div id="timerText" class="outline">
+    <b>
+      <label id="timerSeconds">00:00</label>
+      <label id="timerCount"> (0)</label>
+    </b>
+  </div>
+</body>
+<script>
+  // let timerDurations = JSON.parse(getCookie('timerDurations', "[5, 10, 20]"));
+  // let timerColors = JSON.parse(getCookie("timerColors", '["#993300", "#006699", "#981265"]'));
+  // let timerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
+  let timerDurations = JSON.parse(getCookie('timerDurations', "[30, 3]"));
+  let timerColors = JSON.parse(getCookie("timerColors", '["#CC6633", "#003366"]'));
+  let timerFlash = JSON.parse(getCookie("timerFlash", "[false, true, false]"));
+  let timerFlashDuration = JSON.parse(getCookie("timerFlashDuration", 2));
+  let timerFlashIntervalMs = JSON.parse(getCookie("timerFlashDuration", 500));
+  let numRows = parseInt(getCookie("numRows", 1));
+  let orientation = getCookie("orientation", "row");
+  let fontSize = parseInt(getCookie("fontSize", 8));
+  let updateMs = 1000 / 25;
+
+  let defaultStartupTime = 3;
+
+  // Working logical variables
+  let keepGoing = false;
+  let resetTimer = true;
+  let currentTimer = -1;
+  let totalCounts = 0;
+
+  buildElements();
+
+</script>
+
+</html>
