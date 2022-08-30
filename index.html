@@ -1,3 +1,4 @@
+<!-- <!DOCTYPE html> -->
 <html>
 <style>
   .outline {
@@ -52,30 +53,31 @@
     text-decoration: none;
     text-align: center;
     padding: 0.2em;
-    padding-bottom:0.6em;
-    height: 2em;
+    padding-bottom: 0.6em;
+    height: 3em;
     top: 0.16em;
   }
 
   #editButton {
     position: fixed;
     left: 0.16emem;
-    border-radius: 0 0 1.5em 0;
+    border-radius: 0 0 3em 0;
+    width: 3em;
     /* display: none; */
   }
 
   #resetButton {
     position: fixed;
     right: 0.16em;
-    border-radius: 0 0 0 1.5em;
+    border-radius: 0 0 0 3em;
   }
 
   #startButton {
     position: fixed;
     left: 50%;
     transform: translate(-50%, 0%);
-    border-radius: 0 0 1.5em 1.5em;
-    width: 3em;
+    border-radius: 0 0 3em 3em;
+    width: 6em;
   }
 
   #timerText {
@@ -83,6 +85,19 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
+  }
+
+  #timer-edit-container {
+    font-size: 0.2em;
+    position: fixed;
+    width: 95%;
+    height: 95%;
+    top: 2.5%;
+    left: 2.5%;
+    background-color: whitesmoke;
+    z-index: 1000;
+    padding: 0.2em;
+    visibility: hidden;
   }
 </style>
 <script>
@@ -115,6 +130,31 @@
     document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
   }
 
+  function getSettingsFromPreset(presetName) {
+    let settings = userSettings["presets"].filter(s => {
+      return s["name"] == presetName
+    })[0];
+    timerDurations = settings["timerDurations"];
+    timerColors = settings["timerColors"];
+    timerFlash = settings["timerFlash"];
+    timerFlashDuration = settings["timerFlashDuration"];
+    timerFlashIntervalMs = settings["timerFlashIntervalMs"];
+    numRows = settings["numRows"];
+    orientation = settings["orientation"];
+    fontSize = settings["fontSize"];
+  }
+
+  function onClickEditButton() {
+    let editContainer = document.getElementById("timer-edit-container");
+    editContainer.style.visibility = "visible";
+  }
+
+  function onClickEditClose() {
+    let editContainer = document.getElementById("timer-edit-container");
+    editContainer.style.visibility = "hidden";
+  }
+
+
   // Helper functions
   function str_pad_left(string, pad, length) {
     // Pads the number with zeros to look nice for the timer display
@@ -131,10 +171,10 @@
     // Convert the time in seconds to a nice string for display
     let minutes = Math.floor(timeInSeconds / 60);
     let seconds = timeInSeconds - minutes * 60;
-    return str_pad_left(minutes, '0', 2) + ':' + str_pad_left(seconds,'0', 2);
+    return str_pad_left(minutes, '0', 2) + ':' + str_pad_left(seconds, '0', 2);
   }
 
-  function parseTimeSeconds(timeAsText){
+  function parseTimeSeconds(timeAsText) {
     // Converts displayed text BACK into seconds
     let splitTime = timeAsText.split(":");
     return parseInt(splitTime[0]) * 60 + parseInt(splitTime[1]);
@@ -174,23 +214,23 @@
   }
 
   // Actually Running the Timer
-  async function startTimerClick(){
+  async function startTimerClick() {
     let timerText = document.getElementById("timerSeconds");
     if (keepGoing === false) {
       keepGoing = true;
-      document.getElementById("startButton").innerText = "Stop";
-      if (resetTimer === true){
+      document.getElementById("startButton").innerHTML = "Stop<br>&nbsp;";
+      if (resetTimer === true) {
         timerText.innerText = getTimerText(defaultStartupTime);
         resetTimer = false;
       }
       await runTimer();
     }
     keepGoing = false;
-    document.getElementById("startButton").innerText = "Start";
+    document.getElementById("startButton").innerHTML = "Start<br>&nbsp;";
 
   }
 
-  function resetTimerClick(){
+  function resetTimerClick() {
     resetTimer = true;
     let timerText = document.getElementById("timerSeconds");
     if (keepGoing) {
@@ -213,11 +253,11 @@
     let block0 = document.getElementsByClassName("colorBlock-0");
     let block1 = document.getElementsByClassName("colorBlock-1");
     console.log(timerId + " " + timerId1 + " " + c1 + " " + c0);
-    for (let i=0; i < block0.length; i++) {
+    for (let i = 0; i < block0.length; i++) {
       block0[i].style.background = c1;
       block1[i].style.background = c0;
     }
-}
+  }
 
   async function runTimer() {
     let timerText = document.getElementById("timerSeconds");
@@ -238,7 +278,7 @@
         break;
       }
       currentTimer += 1;
-      if (currentTimer === timerDurations.length){
+      if (currentTimer === timerDurations.length) {
         currentTimer = 0;
         totalCounts += 1;
         timerCount.innerText = "(" + totalCounts + ")";
@@ -247,48 +287,48 @@
     }
   }
 
-function updateColorFracs(block0, block1, newfrac) {
-  for (let i=0; i < block0.length; i++) {
-    block0[i].style.flex = newfrac;
-    block1[i].style.flex = 1 - newfrac;
-  }
-}
-
-async function runTimerDuration(startTimerTime, flash) {
-  let block0 = document.getElementsByClassName("colorBlock-0");
-  let block1 = document.getElementsByClassName("colorBlock-1");
-  let timerText = document.getElementById("timerSeconds");
-
-  let currentFrac = 1;
-
-  // We need to fudge the start time in case someone paused in the middle of a round...
-  let timerTime = parseTimeSeconds(timerText.innerText);
-  let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
-  let currentTime = Date.now();
-  let flashTotalTime = startTimerTime;
-  if (timerFlashDuration !== null){
-    flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
-  }
-  flashTotalTime *= 1000;
-  while ((timerTime > 0) & (keepGoing)) {
-    currentTime = Date.now();
-    let timeDiff = (currentTime - startTime);
-    timerTime = Math.max(0, startTimerTime - timeDiff / 1000);
-    currentFrac = Math.max(0, timerTime / (startTimerTime));
-    if (flash &  (timeDiff < flashTotalTime)) {
-      if (Math.round(timeDiff / timerFlashIntervalMs) % 2 === 0) {
-        updateColorFracs(block0, block1, 1);
-      } else {
-        updateColorFracs(block0, block1, 0);
-      }
-    } else {
-      updateColorFracs(block1, block0, currentFrac);
+  function updateColorFracs(block0, block1, newfrac) {
+    for (let i = 0; i < block0.length; i++) {
+      block0[i].style.flex = newfrac;
+      block1[i].style.flex = 1 - newfrac;
     }
-    timerText.innerText = getTimerText(Math.ceil(timerTime));
-    await sleep(Math.min(updateMs, timerTime * 1000));
   }
 
-}
+  async function runTimerDuration(startTimerTime, flash) {
+    let block0 = document.getElementsByClassName("colorBlock-0");
+    let block1 = document.getElementsByClassName("colorBlock-1");
+    let timerText = document.getElementById("timerSeconds");
+
+    let currentFrac = 1;
+
+    // We need to fudge the start time in case someone paused in the middle of a round...
+    let timerTime = parseTimeSeconds(timerText.innerText);
+    let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
+    let currentTime = Date.now();
+    let flashTotalTime = startTimerTime;
+    if (timerFlashDuration !== null) {
+      flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
+    }
+    flashTotalTime *= 1000;
+    while ((timerTime > 0) & (keepGoing)) {
+      currentTime = Date.now();
+      let timeDiff = (currentTime - startTime);
+      timerTime = Math.max(0, startTimerTime - timeDiff / 1000);
+      currentFrac = Math.max(0, timerTime / (startTimerTime));
+      if (flash & (timeDiff < flashTotalTime)) {
+        if (Math.round(timeDiff / timerFlashIntervalMs) % 2 === 0) {
+          updateColorFracs(block0, block1, 1);
+        } else {
+          updateColorFracs(block0, block1, 0);
+        }
+      } else {
+        updateColorFracs(block1, block0, currentFrac);
+      }
+      timerText.innerText = getTimerText(Math.ceil(timerTime));
+      await sleep(Math.min(updateMs, timerTime * 1000));
+    }
+
+  }
 </script>
 
 <head>
@@ -296,28 +336,101 @@ async function runTimerDuration(startTimerTime, flash) {
 
 <body>
   <div id="timer-container"></div>
-  <button id="resetButton" class="timerButton" onclick="resetTimerClick()">Reset</button>
-  <button id="startButton" class="timerButton" onclick="startTimerClick()">Start</button>
-  <button id="editButton" class="timerButton">Edit</button>
+  <button id="resetButton" class="timerButton" onclick="resetTimerClick()">Reset<br>&nbsp;</button>
+  <button id="startButton" class="timerButton" onclick="startTimerClick()">Start<br>&nbsp;</button>
+  <button id="editButton" class="timerButton" onclick="onClickEditButton()">Edit<br>&nbsp;</button>
   <div id="timerText" class="outline">
     <b>
       <label id="timerSeconds">00:00</label>
       <label id="timerCount"> (0)</label>
     </b>
   </div>
+  <div id="timer-edit-container">
+    <button onclick="onClickEditClose()">X</button>
+    <div id="timer-presets">
+      <label for="preset-select">Load a preset:</label>
+      <select name="preset-select" id="preset-select" multiple>
+        <option value="default"> Default</option>
+        <option value="new">New-Preset</option>
+      </select>
+      <button id="load-preset-button">Load</button>
+      <button id="remove-preset-button">-</button>
+      <input type="text" placeholder="Preset name"/>
+    </div>
+    <div id="timer-global-edits">
+      <div>
+        <label>Length of Time for Flashing (seconds):</label><input type="number" min="0" max="60" value="5" />
+      </div>
+      <div>
+        <label>Flash Frequency (Hz):</label><input type="number" min="1" max="5" value="2" />
+      </div>
+      <div>
+        <label>Number of Color Block Rows/Columns:</label><input type="number" min="1" max="11" value="1" />
+      </div>
+      <div>
+        <label>Orientation of Color Blocks:</label>
+        <select>
+          <option value="row">Row</option>
+          <option value="column">Column</option>
+        </select>
+      </div>
+      <div>
+        <label>Font Size:</label><input type="number" min="1" max="40" value="8" />
+      </div>
+      <div id="timer-edits">
+        <label for="time-select">Edit timer:</label>
+        <select name="time-select" time="ti-select" multiple>
+          <option value="00:03"> Default</option>
+          <option value="00:30" style="background:cyan">New-Preset</option>
+        </select>
+        <button id="new-time-button">+</button>
+        <button id="remove-time-button">-</button>
+        <div>
+          <label>Timer Duration (mm:ss):</label><input type="number" min="0" max="60"/>:<input type="number" min="0" max="60"/>
+        </div>
+        <div>
+          <label>Timer Color:</label><input type="color" />
+        </div>
+        <div>
+          <label>Flashes?:</label><input type="checkbox" />
+        </div>
+      </div>
+
+    </div>
 </body>
 <script>
   // let timerDurations = JSON.parse(getCookie('timerDurations', "[5, 10, 20]"));
   // let timerColors = JSON.parse(getCookie("timerColors", '["#993300", "#006699", "#981265"]'));
   // let timerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
-  let timerDurations = JSON.parse(getCookie('timerDurations', "[30, 3]"));
-  let timerColors = JSON.parse(getCookie("timerColors", '["#CC6633", "#003366"]'));
-  let timerFlash = JSON.parse(getCookie("timerFlash", "[false, true, false]"));
-  let timerFlashDuration = JSON.parse(getCookie("timerFlashDuration", 2));
-  let timerFlashIntervalMs = JSON.parse(getCookie("timerFlashDuration", 500));
-  let numRows = parseInt(getCookie("numRows", 1));
-  let orientation = getCookie("orientation", "row");
-  let fontSize = parseInt(getCookie("fontSize", 8));
+  let userSettings = JSON.stringify({
+    "presets": [
+      {
+        "name": "default",
+        "timerDurations": [30, 3],
+        "timerColors": ["#CC6633", "#003366"],
+        "timerFlash": [false, true],
+        "timerFlashDuration": null,
+        "timerFlashIntervalMs": 500,
+        "numRows": 1,
+        "orientation": "row",
+        "fontSize": 8
+      }
+    ],
+    "last-selected-preset": "default"
+  });
+
+  userSettings = JSON.parse(getCookie("timerPresets", userSettings));
+
+  let timerDurations = undefined;
+  let timerColors = undefined;
+  let timerFlash = undefined;
+  let timerFlashDuration = undefined;
+  let timerFlashIntervalMs = undefined;
+  let numRows = undefined;
+  let orientation = undefined;
+  let fontSize = undefined;
+  getSettingsFromPreset(userSettings["last-selected-preset"]);
+
   let updateMs = 1000 / 25;
 
   let defaultStartupTime = 3;
