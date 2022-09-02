@@ -204,6 +204,7 @@
   function timerEditButtonCloseOnClickSave() {
     timerEditButtonCloseOnClick();
     // TODO: Add saving of settings
+    buildElements();
     }
 
   function timerEditButtonCloseOnClickCancel() {
@@ -330,6 +331,17 @@
     
     getSettingsFromSettings(activeSettings);
     timerEditPopulatePreset(activeSettings, i);
+  }
+
+  function timerEditGlobalSettingOnClick(value, settingName) {
+    activeSettings[settingName] = value;
+    getSettingsFromSettings(activeSettings);
+  }
+
+  function timerEditGlobalSettingOnClickName(value){
+    timerEditGlobalSettingOnClick(value, 'name');
+    let presetSelect = document.getElementById("preset-select");
+    let option = presetSelect.selectedOptions[0].innerText = value;
   }
 
   // Helper functions
@@ -483,6 +495,11 @@
     let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
     let currentTime = Date.now();
     let flashTotalTime = startTimerTime;
+    try {
+      timerFlashDuration = parseInt(timerFlashDuration);
+    } catch {
+      timerFlashDuration = null;
+    }
     if (timerFlashDuration !== null) {
       flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
     }
@@ -535,23 +552,23 @@
       </select>
       <button id="new-preset-button">+</button>
       <button id="remove-preset-button">-</button>
-      <input id="new-preset-name" type="text" placeholder="Preset name"/>
+      <input id="new-preset-name" type="text" placeholder="Preset name" oninput="timerEditGlobalSettingOnClickName(event.target.value);"/>
     </div>
     <div id="timer-global-edits">
       <div>
-        <label><em>Flashing.</em> Duration (seconds):</label><input id="timer-flash-duration" type="number" min="0" max="60" value="5" />
-        <label>Frequency (Hz):</label><input id="timer-flash-interval" type="number" min="1" max="5" value="2" />
+        <label><em>Flashing.</em> Duration (seconds):</label><input id="timer-flash-duration" type="number" min="0" max="60" value="5" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'timerFlashDuration');"/>
+        <label>Frequency (Hz):</label><input id="timer-flash-interval" type="number" min="1" max="5" value="2" onchange="timerEditGlobalSettingOnClick(1000 / parseInt(event.target.value), 'timerFlashIntervalMs');"/>
       </div>
       <div>
-        <label><em>Color Blocks.</em> Number:</label><input id="timer-color-nrows" type="number" min="1" max="11" value="1" />
+        <label><em>Color Blocks.</em> Number:</label><input id="timer-color-nrows" type="number" min="1" max="11" value="1" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'numRows');"/>
         <label>Orientation:</label>
-        <select id="timer-color-orient">
+        <select id="timer-color-orient" onchange="timerEditGlobalSettingOnClick(event.target.value, 'orientation');">
           <option value="row">Row</option>
           <option value="column">Column</option>
         </select>
       </div>
       <div>
-        <label>Font Size:</label><input id="timer-font-size" type="number" min="1" max="40" value="8" />
+        <label>Font Size:</label><input id="timer-font-size" type="number" min="1" max="40" value="8" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'fontSize');"/>
       </div>
       <div id="timer-edits">
         <label for="time-select">Edit timer:</label>
