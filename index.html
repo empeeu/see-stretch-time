@@ -152,6 +152,9 @@
     let settings = userSettings["presets"].filter(s => {
       return s["name"] == presetName
     })[0];
+    if (settings === undefined) {
+      return;
+    }
     activeSettings = settings;
     getSettingsFromSettings(settings);
   }
@@ -171,9 +174,11 @@
     return JSON.parse(JSON.stringify(obj));
   }
 
-  function timerEditButtonOnClick() {
+  function timerEditButtonOnClick(saveSettings=true) {
     // Save settings in case of cancelling
-    editSettings = cloneObject(userSettings);
+    if (saveSettings){
+      editSettings = cloneObject(userSettings);
+    }
 
     let editContainer = document.getElementById("timer-edit-container");
     editContainer.style.visibility = "visible";
@@ -211,7 +216,7 @@
     // Restore Settings
     userSettings = cloneObject(editSettings);
     let presetName = document.getElementById("preset-select").value;
-    if (presetName == "__new__") {
+    if ((presetName === "__new__") | (presetName === '')) {
       presetName = userSettings["last-selected-preset"];
     } else {
       presetName = userSettings["presets"][presetName]["name"];
@@ -341,7 +346,37 @@
   function timerEditGlobalSettingOnClickName(value){
     timerEditGlobalSettingOnClick(value, 'name');
     let presetSelect = document.getElementById("preset-select");
-    let option = presetSelect.selectedOptions[0].innerText = value;
+    let option = presetSelect.selectedOptions[0];
+    if (option === undefined){
+      return;
+    } 
+    option.innerText = value;
+  }
+
+  function timerRemovePreset(){
+    let presetIndex = document.getElementById("preset-select").value;
+    if (presetIndex == "__new__"){
+      return;  // do nothing
+    }
+    userSettings["presets"].splice(parseInt(presetIndex), 1);
+    userSettings["last-selected-preset"] = null;
+    timerEditButtonOnClick(false);
+  }
+
+  function timerAddPreset() {
+    let presetSelect = document.getElementById("preset-select");
+    let i = presetSelect.value;
+    if (i === "__new__"){
+      i = 0;
+    } else {
+      i = parseInt(i) + 1;
+    }
+    let newSettings = cloneObject(activeSettings);
+    newSettings["name"] = newSettings["name"] + "+";
+    userSettings["presets"].splice(i, 0, newSettings);
+    presetSelect.value = i;
+    userSettings["last-selected-preset"] = newSettings["name"];
+    timerEditButtonOnClick(false);
   }
 
   // Helper functions
@@ -495,12 +530,7 @@
     let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
     let currentTime = Date.now();
     let flashTotalTime = startTimerTime;
-    try {
-      timerFlashDuration = parseInt(timerFlashDuration);
-    } catch {
-      timerFlashDuration = null;
-    }
-    if (timerFlashDuration !== null) {
+    if ((timerFlashDuration !== null) | !(isNaN(timerFlashDuration))) {
       flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
     }
     flashTotalTime *= 1000;
@@ -550,8 +580,8 @@
         <option value="new">---New---</option>
         <option value="default">---Default---</option>
       </select>
-      <button id="new-preset-button">+</button>
-      <button id="remove-preset-button">-</button>
+      <button id="new-preset-button" onclick="timerAddPreset();">+</button>
+      <button id="remove-preset-button" onclick="timerRemovePreset();">-</button>
       <input id="new-preset-name" type="text" placeholder="Preset name" oninput="timerEditGlobalSettingOnClickName(event.target.value);"/>
     </div>
     <div id="timer-global-edits">
@@ -594,7 +624,7 @@
   // let timerDurations = JSON.parse(getCookie('timerDurations', "[5, 10, 20]"));
   // let timerColors = JSON.parse(getCookie("timerColors", '["#993300", "#006699", "#981265"]'));
   // let t/imerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
-  let userSettings = JSON.stringify({
+  let defaultSettings = JSON.stringify({
     "presets": [
       {
         "name": "default",
@@ -611,7 +641,15 @@
     "last-selected-preset": "default"
   });
 
-  userSettings = JSON.parse(getCookie("timerPresets", userSettings));
+  let userSettings = JSON.parse(getCookie("timerPresets", defaultSettings));
+  if (userSettings["presets"].length == 0){
+    userSettings["presets"] = defaultSettings["presets"];
+    userSettings["last-selected-preset"] = "default";
+  }
+  if (userSettings["last-selected-preset"] === null) {
+    userSettings["last-selected-preset"] = userSettings["presets"][0]["name"];
+  }
+
 
   // Global working variables
   let activeSettings = undefined;
