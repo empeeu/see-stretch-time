@@ -109,6 +109,14 @@
       background: whitesmoke;
   }
 
+
+  #time-duration-select option:focus{
+      font-weight: bold;
+      background-color: whitesmoke;
+      background: whitesmoke;
+  }
+
+
 </style>
 <script>
   //////////////////////
@@ -189,7 +197,7 @@
       presetSelect.appendChild(option);
     }
 
-    presetSelect.value = i;  // This should be sometihng else?
+    presetSelect.value = lastSelectedIndex;  // This should be sometihng else?
     timerEditOnChange();
   }
 
@@ -219,7 +227,7 @@
 
   function timerEditOnChange() {
     let presetSelect = document.getElementById('preset-select');
-    if (presetSelect.value == "__new__"){
+    if ((presetSelect.value == "__new__") | (presetSelect.value === '')){
       // timerEditPopulatePreset(null);
       return;
     }
