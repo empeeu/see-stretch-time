@@ -102,6 +102,13 @@
     padding: 0.2em;
     visibility: hidden;
   }
+
+  #time-duration-select option:checked{
+      font-weight: bold;
+      background-color: whitesmoke;
+      background: whitesmoke;
+  }
+
 </style>
 <script>
   //////////////////////
@@ -138,6 +145,10 @@
       return s["name"] == presetName
     })[0];
     activeSettings = settings;
+    getSettingsFromSettings(settings);
+  }
+
+  function getSettingsFromSettings(settings){
     timerDurations = settings["timerDurations"];
     timerColors = settings["timerColors"];
     timerFlash = settings["timerFlash"];
@@ -148,7 +159,14 @@
     fontSize = settings["fontSize"];
   }
 
+  function cloneObject(obj){
+    return JSON.parse(JSON.stringify(obj));
+  }
+
   function timerEditButtonOnClick() {
+    // Save settings in case of cancelling
+    editSettings = cloneObject(userSettings);
+
     let editContainer = document.getElementById("timer-edit-container");
     editContainer.style.visibility = "visible";
     // Populate the presets selection
@@ -158,13 +176,40 @@
     option.value = "__new__";
     option.innerHTML = "---New---";
     presetSelect.appendChild(option);
+    let lastSelectedPreset = userSettings["last-selected-preset"];
+    let lastSelectedIndex = 0;
     for (var i=0; i<userSettings["presets"].length; i++){
       // console.log(i + " Preset" + userSettings["presets"][i]["name"]); 
       option = document.createElement("option");
-      option.value = userSettings["presets"][i]["name"];
+      option.value = i;
       option.innerHTML = userSettings["presets"][i]["name"];
+      if (userSettings["presets"][i]["name"] === lastSelectedPreset) {
+        lastSelectedIndex = i;
+      }
       presetSelect.appendChild(option);
     }
+
+    presetSelect.value = i;  // This should be sometihng else?
+    timerEditOnChange();
+  }
+
+  function timerEditButtonCloseOnClickSave() {
+    timerEditButtonCloseOnClick();
+    // TODO: Add saving of settings
+    }
+
+  function timerEditButtonCloseOnClickCancel() {
+    // Restore Settings
+    userSettings = cloneObject(editSettings);
+    let presetName = document.getElementById("preset-select").value;
+    if (presetName == "__new__") {
+      presetName = userSettings["last-selected-preset"];
+    } else {
+      presetName = userSettings["presets"][presetName]["name"];
+    }
+    getSettingsFromPreset(presetName);
+    timerEditButtonCloseOnClick();
+
   }
 
   function timerEditButtonCloseOnClick() {
@@ -178,11 +223,12 @@
       // timerEditPopulatePreset(null);
       return;
     }
-    getSettingsFromPreset(presetSelect.value);
+    userSettings["last-selected-preset"] = userSettings["presets"][presetSelect.value]["name"];
+    getSettingsFromPreset(userSettings["presets"][presetSelect.value]["name"]);
     timerEditPopulatePreset(activeSettings);
   }
 
-  function timerEditPopulatePreset(settings){
+  function timerEditPopulatePreset(settings, optionValue = "__new__"){
     if (settings === null){
       settings = userSettings["presets"][0];
     }
@@ -216,6 +262,7 @@
       option.style.color = c;
       timeSelect.appendChild(option);
     }
+    timeSelect.value = optionValue;
 
   }
 
@@ -230,6 +277,52 @@
     document.getElementById("timer-duration-flash").checked = flash;
   }
 
+  function timerEditSettingOnClick(value, settingName) {
+    let i = document.getElementById("time-duration-select").value;
+    if (i === "__new__"){
+      return;
+    }
+    activeSettings[settingName][i] = value;
+    getSettingsFromSettings(activeSettings);
+    timerEditPopulatePreset(activeSettings, i);
+  }
+
+  function timerEditDurationSecondsOnClick() {
+    let m = parseInt(document.getElementById("timer-duration-minutes").value);
+    let s = parseInt(document.getElementById("timer-duration-seconds").value);
+    console.log(m);
+    timerEditSettingOnClick(m * 60 + s, "timerDurations");
+  }
+
+  function timerEditRemoveTimeOnClick(){
+    let i = document.getElementById("time-duration-select").value;
+    console.log(i);
+    if (i === "__new__"){
+      return;
+    }
+    activeSettings["timerDurations"].splice(i, 1);
+    activeSettings["timerColors"].splice(i, 1);
+    activeSettings["timerFlash"].splice(i, 1);
+    getSettingsFromSettings(activeSettings);
+    timerEditPopulatePreset(activeSettings);
+  }
+
+  function timerEditAddTimeOnClick(){
+    let i = document.getElementById("time-duration-select").value;
+    if (i === "__new__"){
+      i = 0;
+    } else {
+      i = parseInt(i) + 1;
+    }
+    // Make the new elements in the arrays
+    activeSettings["timerColors"].splice(i, 0, document.getElementById('timer-duration-color').value);
+    activeSettings["timerFlash"].splice(i, 0, document.getElementById('timer-duration-flash').checked);
+    activeSettings["timerDurations"].splice(i, 0, 0); // populate correctly below
+
+    
+    getSettingsFromSettings(activeSettings);
+    timerEditPopulatePreset(activeSettings, i);
+  }
 
   // Helper functions
   function str_pad_left(string, pad, length) {
@@ -423,7 +516,8 @@
   </div>
   <div id="timer-edit-container">
     <div>
-      <button onclick="timerEditButtonCloseOnClick()">X</button>
+      <button onclick="timerEditButtonCloseOnClickSave()">Save</button>
+      <button onclick="timerEditButtonCloseOnClickCancel()">Cancel</button>
     </div>
     <div id="timer-presets">
       <label for="preset-select">Load a preset:</label>
@@ -453,19 +547,19 @@
       </div>
       <div id="timer-edits">
         <label for="time-select">Edit timer:</label>
-        <select id="time-duration-select" onchange="timerEditDurationOnChange();" name="time-select" time="ti-select" multiple>
-          <option value="new" style="background:white">---New---</option>
+        <select id="time-duration-select" onchange="timerEditDurationOnChange();" value="__new__" name="time-select" time="ti-select" multiple>
+          <option value="__new__" style="background:white" selected>---New---</option>
         </select>
-        <button id="new-time-button">+</button>
-        <button id="remove-time-button">-</button>
+        <button id="new-time-button" onclick="timerEditAddTimeOnClick();">+</button>
+        <button id="remove-time-button" onclick="timerEditRemoveTimeOnClick();">-</button>
         <div>
-          <label>Timer Duration (mm:ss):</label><input id="timer-duration-minutes" type="number" min="0" max="60"/>:<input id="timer-duration-seconds" type="number" min="0" max="60"/>
+          <label>Timer Duration (mm:ss):</label><input id="timer-duration-minutes" type="number" min="0" max="60" onchange="timerEditDurationSecondsOnClick()"/>:<input id="timer-duration-seconds" type="number" min="0" max="60" onchange="timerEditDurationSecondsOnClick()"/>
         </div>
         <div>
-          <label>Timer Color:</label><input id="timer-duration-color" type="color" />
+          <label>Timer Color:</label><input id="timer-duration-color" type="color" onchange="timerEditSettingOnClick(event.target.value, 'timerColors');"/>
         </div>
         <div>
-          <label>Flashes?:</label><input id="timer-duration-flash" type="checkbox" />
+          <label>Flashes?:</label><input id="timer-duration-flash" type="checkbox" onchange="timerEditSettingOnClick(event.target.checked, 'timerFlash');"/>
         </div>
       </div>
 
@@ -474,7 +568,7 @@
 <script>
   // let timerDurations = JSON.parse(getCookie('timerDurations', "[5, 10, 20]"));
   // let timerColors = JSON.parse(getCookie("timerColors", '["#993300", "#006699", "#981265"]'));
-  // let timerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
+  // let t/imerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
   let userSettings = JSON.stringify({
     "presets": [
       {
@@ -496,6 +590,7 @@
 
   // Global working variables
   let activeSettings = undefined;
+  let editSettings = undefined;  // Save settings before editing
   let timerDurations = undefined;
   let timerColors = undefined;
   let timerFlash = undefined;
@@ -504,6 +599,10 @@
   let numRows = undefined;
   let orientation = undefined;
   let fontSize = undefined;
+  // For a new timer
+  let timerNewDuration = undefined;
+  let timerNewColor = undefined
+  let timerNewFlashCheck = undefined;
   getSettingsFromPreset(userSettings["last-selected-preset"]);
 
   let updateMs = 1000 / 25;
