@@ -208,7 +208,7 @@
 
   function timerEditButtonCloseOnClickSave() {
     timerEditButtonCloseOnClick();
-    // TODO: Add saving of settings
+    setCookie("timerPresets", JSON.stringify(userSettings), 30);
     buildElements();
     }
 
@@ -476,7 +476,7 @@
     let c1 = timerColors[timerId1];
     let block0 = document.getElementsByClassName("colorBlock-0");
     let block1 = document.getElementsByClassName("colorBlock-1");
-    console.log(timerId + " " + timerId1 + " " + c1 + " " + c0);
+    // console.log(timerId + " " + timerId1 + " " + c1 + " " + c0);
     for (let i = 0; i < block0.length; i++) {
       block0[i].style.background = c1;
       block1[i].style.background = c0;
@@ -530,7 +530,7 @@
     let startTime = Date.now() - (startTimerTime - timerTime) * 1000;
     let currentTime = Date.now();
     let flashTotalTime = startTimerTime;
-    if ((timerFlashDuration !== null) | !(isNaN(timerFlashDuration))) {
+    if ((timerFlashDuration !== null) & !(isNaN(timerFlashDuration))) {
       flashTotalTime = Math.min(flashTotalTime, timerFlashDuration);
     }
     flashTotalTime *= 1000;
@@ -587,7 +587,7 @@
     <div id="timer-global-edits">
       <div>
         <label><em>Flashing.</em> Duration (seconds):</label><input id="timer-flash-duration" type="number" min="0" max="60" value="5" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'timerFlashDuration');"/>
-        <label>Frequency (Hz):</label><input id="timer-flash-interval" type="number" min="1" max="5" value="2" onchange="timerEditGlobalSettingOnClick(1000 / parseInt(event.target.value), 'timerFlashIntervalMs');"/>
+        <label>Frequency (Hz):</label><input id="timer-flash-interval" type="number" min="1" max="9" value="2" onchange="timerEditGlobalSettingOnClick(1000 / parseInt(event.target.value), 'timerFlashIntervalMs');"/>
       </div>
       <div>
         <label><em>Color Blocks.</em> Number:</label><input id="timer-color-nrows" type="number" min="1" max="11" value="1" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'numRows');"/>
@@ -624,7 +624,7 @@
   // let timerDurations = JSON.parse(getCookie('timerDurations', "[5, 10, 20]"));
   // let timerColors = JSON.parse(getCookie("timerColors", '["#993300", "#006699", "#981265"]'));
   // let t/imerFlash = JSON.parse(getCookie("timerFlash", "[true, false, false]"));
-  let defaultSettings = JSON.stringify({
+  let defaultSettings = {
     "presets": [
       {
         "name": "default",
@@ -639,9 +639,14 @@
       }
     ],
     "last-selected-preset": "default"
-  });
-
-  let userSettings = JSON.parse(getCookie("timerPresets", defaultSettings));
+  };
+  let userSettings = {};
+  try {
+    userSettings = JSON.parse(getCookie("timerPresets", JSON.stringify(defaultSettings)));
+  } catch {
+    console.log("Using Default Settings, Cookie Corrupt.");
+    userSettings = defaultSettings;
+  }
   if (userSettings["presets"].length == 0){
     userSettings["presets"] = defaultSettings["presets"];
     userSettings["last-selected-preset"] = "default";
@@ -649,7 +654,6 @@
   if (userSettings["last-selected-preset"] === null) {
     userSettings["last-selected-preset"] = userSettings["presets"][0]["name"];
   }
-
 
   // Global working variables
   let activeSettings = undefined;
@@ -670,7 +674,7 @@
 
   let updateMs = 1000 / 25;
 
-  let defaultStartupTime = 3;
+  let defaultStartupTime = 5;
 
   // Working logical variables
   let keepGoing = false;
