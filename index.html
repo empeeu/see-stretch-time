@@ -160,6 +160,11 @@
   }
 
   function getSettingsFromSettings(settings){
+    startupColor0 = settings["startupColor0"];
+    startupColor1 = settings["startupColor1"];
+    startupDuration = settings["startupDuration"];
+    startupFlashes = settings["startupFlashes"];
+    showCounter = settings["showCounter"];
     timerDurations = settings["timerDurations"];
     timerColors = settings["timerColors"];
     timerFlash = settings["timerFlash"];
@@ -168,6 +173,13 @@
     numRows = settings["numRows"];
     orientation = settings["orientation"];
     fontSize = settings["fontSize"];
+
+    // Hide/show counter
+    if (showCounter) {
+      timerCount.style.display = "";
+    } else {
+      timerCount.style.display = "none";
+  }
   }
 
   function cloneObject(obj){
@@ -192,7 +204,7 @@
     let lastSelectedPreset = userSettings["last-selected-preset"];
     let lastSelectedIndex = 0;
     for (var i=0; i<userSettings["presets"].length; i++){
-      // console.log(i + " Preset" + userSettings["presets"][i]["name"]); 
+      // console.log(i + " Preset" + userSettings["presets"][i]["name"]);
       option = document.createElement("option");
       option.value = i;
       option.innerHTML = userSettings["presets"][i]["name"];
@@ -248,6 +260,14 @@
     }
     // Get the HTML elements and set their values
     document.getElementById("new-preset-name").value = settings["name"];
+
+    document.getElementById("startup-timer-duration").value = settings["startupDuration"];
+    document.getElementById("timer-startup-color0").value = settings["startupColor0"];
+    document.getElementById("timer-startup-color1").value = settings["startupColor1"];
+    document.getElementById("timer-startup-flash").checked = settings["startupFlashes"];
+
+    document.getElementById("timer-show-counter").checked = settings["showCounter"];
+
     document.getElementById("timer-flash-duration").value = settings["timerFlashDuration"];
     document.getElementById("timer-flash-interval").value = 1000 / settings["timerFlashIntervalMs"];
 
@@ -333,7 +353,7 @@
     activeSettings["timerFlash"].splice(i, 0, document.getElementById('timer-duration-flash').checked);
     activeSettings["timerDurations"].splice(i, 0, 0); // populate correctly below
 
-    
+
     getSettingsFromSettings(activeSettings);
     timerEditPopulatePreset(activeSettings, i);
   }
@@ -349,7 +369,7 @@
     let option = presetSelect.selectedOptions[0];
     if (option === undefined){
       return;
-    } 
+    }
     option.innerText = value;
   }
 
@@ -468,12 +488,21 @@
   }
 
   function updateBlockColors(timerId) {
-    let c0 = timerColors[timerId];
-    let timerId1 = timerId + 1;
-    if (timerId1 === timerColors.length) {
+    let c0 = null;
+    let c1 = null;
+    let timerId1 = null;
+    if (timerId === -1) { // Default Timer
+      c0 = startupColor0;
+      c1 = startupColor1;
       timerId1 = 0;
+    } else {
+      c0 = timerColors[timerId];
+      timerId1 = timerId + 1;
+      if (timerId1 === timerColors.length) {
+        timerId1 = 0;
+      }
+      c1 = timerColors[timerId1];
     }
-    let c1 = timerColors[timerId1];
     let block0 = document.getElementsByClassName("colorBlock-0");
     let block1 = document.getElementsByClassName("colorBlock-1");
     // console.log(timerId + " " + timerId1 + " " + c1 + " " + c0);
@@ -487,9 +516,15 @@
     let timerText = document.getElementById("timerSeconds");
     let timerCount = document.getElementById("timerCount");
 
+    if (showCounter) {
+      timerCount.style.display = "";
+    } else {
+      timerCount.style.display = "none";
+    }
+
     // First time start is clicked we give user a few seconds to set up
     if (currentTimer === -1) {
-      updateBlockColors(0);
+      updateBlockColors(-1);
       await runTimerDuration(defaultStartupTime, true);
       currentTimer = 0;
       timerText.innerText = getTimerText(timerDurations[currentTimer]);
@@ -586,6 +621,13 @@
     </div>
     <div id="timer-global-edits">
       <div>
+        <label><em>Startup.</em> Duration (seconds):</label><input id="startup-timer-duration" type="number" min="0" max="60" value="5" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'startupDuration');"/>
+        <label>Color0:</label><input id="timer-startup-color0" type="color" onchange="timerEditGlobalSettingOnClick(event.target.value, 'startupColor0');"/>
+        <label>Color1:</label><input id="timer-startup-color1" type="color" onchange="timerEditGlobalSettingOnClick(event.target.value, 'startupColor1');"/>
+        <label>Flashes?:</label><input id="timer-startup-flash" type="checkbox" checked onchange="timerEditGlobalSettingOnClick(event.target.checked, 'startupFlashes');"/>
+
+      </div>
+      <div>
         <label><em>Flashing.</em> Duration (seconds):</label><input id="timer-flash-duration" type="number" min="0" max="60" value="5" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'timerFlashDuration');"/>
         <label>Frequency (Hz):</label><input id="timer-flash-interval" type="number" min="1" max="9" value="2" onchange="timerEditGlobalSettingOnClick(1000 / parseInt(event.target.value), 'timerFlashIntervalMs');"/>
       </div>
@@ -596,6 +638,9 @@
           <option value="row">Row</option>
           <option value="column">Column</option>
         </select>
+      </div>
+      <div>
+        <label><em>Text.</em> Show Counter?:</label><input id="timer-show-counter" type="checkbox" checked onchange="timerEditGlobalSettingOnClick(event.target.checked, 'showCounter');"/>
       </div>
       <div>
         <label>Font Size:</label><input id="timer-font-size" type="number" min="1" max="40" value="8" onchange="timerEditGlobalSettingOnClick(parseInt(event.target.value), 'fontSize');"/>
@@ -633,6 +678,11 @@
         "timerFlash": [false, true],
         "timerFlashDuration": null,
         "timerFlashIntervalMs": 500,
+        "showCounter": true,
+        "startupFlashes": true,
+        "startupDuration": 5,
+        "startupColor0": "#000000",
+        "startupColor1": "#222222",
         "numRows": 1,
         "orientation": "row",
         "fontSize": 8
@@ -666,12 +716,12 @@
   let numRows = undefined;
   let orientation = undefined;
   let fontSize = undefined;
-  
+
   getSettingsFromPreset(userSettings["last-selected-preset"]);
 
   let updateMs = 1000 / 25;
 
-  let defaultStartupTime = 5;
+  let defaultStartupTime = startupDuration;
 
   // Working logical variables
   let keepGoing = false;
